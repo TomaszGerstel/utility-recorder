@@ -1,53 +1,120 @@
 import javax.swing.*;
+import javax.swing.event.TableModelEvent;
+import javax.swing.event.TableModelListener;
 import javax.swing.plaf.TableHeaderUI;
+import javax.swing.plaf.basic.BasicTableHeaderUI;
+import javax.swing.plaf.metal.MetalBorders;
 import javax.swing.table.*;
 import javax.swing.text.TableView;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.nio.charset.StandardCharsets;
+import java.sql.SQLOutput;
 import java.text.ParseException;
+import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 public class Panel implements ActionListener {
 
     JMenuBar jmb;
-//    JToolBar jtb;
+    JFrame jfrm;
+    JTabbedPane jtp;
+    JTabbedPane subPane01;
+    JToolBar jtb;
+    JButton button;
 //    JPopupMenu jpu;
 
     public Panel() throws IOException, ParseException {
 
-        JFrame jfrm = new JFrame("Utility Recorder");
-//        jfrm.setLayout(new FlowLayout());
+        jfrm = new JFrame("Utility Recorder");
         jfrm.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         jfrm.setSize(600, 400);
-
         jmb = new JMenuBar();
+        jtp = new JTabbedPane();
+        subPane01 = new JTabbedPane();
+        subPane01.setName("Loaded utilities");
+        jtb = new JToolBar("Actions");
+        button = new JButton("Reload");
+        button.addActionListener(this);
 
         makeFileMenu();
-        makeOptionsMenu();
         makeHelpMenu();
+        addPanelsWithUtilities();
 
-        // Tworzy panele
-        JTabbedPane jtp = new JTabbedPane();
-        jtp.addTab("Data", new DataPanel());
-        jtp.addTab("Diagram", new DiagramPanel());
-        jtp.addTab("Add entry", new EnterDataPanel());
+        jtp.add(subPane01,0);
+        jtp.addTab("Add new utility", new EnterDataPanel());
+        jtb.setFloatable(false);
         jfrm.add(jtp);
-
         jfrm.setJMenuBar(jmb);
-
         jfrm.setVisible(true);
+        jtb.add(button);
+        jfrm.add(jtb, BorderLayout.PAGE_START);
+    }
+
+    private void addPanelsWithUtilities() throws IOException {
+        File data = new File("data_utility.txt");
+        ArrayList<RecordsOfUtilityModel> records = loadData(data);
+        for (RecordsOfUtilityModel rec : records) {
+            subPane01.addTab(rec.getName(), new DataPanel(rec, rec.getName()));
+        }
+    }
+
+    public ArrayList<RecordsOfUtilityModel> loadData(File data) throws IOException {
+        ArrayList<RecordsOfUtilityModel> utilityRecords = new ArrayList<>();
+        if (data.exists()) {
+            BufferedReader br = new BufferedReader(new FileReader(data));
+            String line;
+            while ((line = br.readLine()) != null) {
+                String encLine = new String(line.getBytes(StandardCharsets.UTF_8));
+                if (line.startsWith("*")) {
+                    utilityRecords.add(makeUtilityRecords(encLine, br));
+                }
+            }
+            br.close();
+        }
+        return utilityRecords;
+    }
+
+    public RecordsOfUtilityModel makeUtilityRecords(String encLine, BufferedReader br) throws IOException {
+        String line;
+        RecordModel record;
+        RecordsOfUtilityModel utilityRecord = new RecordsOfUtilityModel(encLine);
+        while ((line = br.readLine()) != null && line.startsWith(">")) {
+            record = parseToRecordModel(line);
+            utilityRecord.addRecord(record);
+        }
+        return utilityRecord;
+    }
+
+    public RecordModel parseToRecordModel(String line) {
+        Pattern utilityValuePatternFromFile = Pattern.compile(":\\s*\\d+\\S*\\s*$");
+        Matcher utilityValueMatcher = utilityValuePatternFromFile.matcher(line);
+        utilityValueMatcher.find();
+        return new RecordModel(parseDate(line), getCleanValue(utilityValueMatcher));
+    }
+
+    public Date parseDate (String line) {
+        SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
+        ParsePosition pp = new ParsePosition(1);
+        return formatter.parse(line, pp);
+    }
+
+    public Float getCleanValue (Matcher valueMatcherFromFile) {
+        Pattern cleanValue = Pattern.compile("\\d+\\.*\\d*");
+        Matcher cleanValueMatch = cleanValue.matcher(valueMatcherFromFile.group());
+        cleanValueMatch.find();
+        String valueFromMatch = cleanValueMatch.group();
+        return Float.valueOf(valueFromMatch);
     }
 
     public static void main(String[] args) {
 
-         SwingUtilities.invokeLater(
+        SwingUtilities.invokeLater(
                 new Runnable() {
                     public void run() {
                         try {
@@ -62,10 +129,30 @@ public class Panel implements ActionListener {
 
     public void actionPerformed(ActionEvent ae) {
         String comStr = ae.getActionCommand();
+        if (comStr.equals("Exit")) System.exit(0);
+        if (comStr.equals("Reload")) reloadTabsAndData();
+        if (comStr.equals("Open")) {
+            Runtime rt = Runtime.getRuntime();
+            String file;
+            file = "data_utility.txt";
+            try {
+                Process p = rt.exec("notepad " + file);
+            } catch (IOException ex) {
+//                Logger.getLogger(NumberAdditionUI.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
 
-        if(comStr.equals("Exit")) System.exit(0);
-        // W pozostałych przypadkach wyświetlana jest nazwa opcji
-//        jlab.setText("Wybrano " + comStr);
+    public void reloadTabsAndData () {
+            jtp.removeAll();
+            subPane01.removeAll();
+            jtp.add(subPane01, 0);
+            jtp.addTab("Add new utility", new EnterDataPanel());
+            try {
+                addPanelsWithUtilities();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
     }
 
     void makeFileMenu() {
@@ -78,16 +165,10 @@ public class Panel implements ActionListener {
                 KeyStroke.getKeyStroke(KeyEvent.VK_O,
                         InputEvent.CTRL_DOWN_MASK));
 
-        JMenuItem jmiClose = new JMenuItem("Close",
-                KeyEvent.VK_C);
-        jmiClose.setAccelerator(
-                KeyStroke.getKeyStroke(KeyEvent.VK_C,
-                        InputEvent.CTRL_DOWN_MASK));
-
-        JMenuItem jmiSave = new JMenuItem("Save",
-                KeyEvent.VK_S);
-        jmiSave.setAccelerator(
-                KeyStroke.getKeyStroke(KeyEvent.VK_S,
+        JMenuItem jmiReload = new JMenuItem("Reload",
+                KeyEvent.VK_R);
+        jmiReload.setAccelerator(
+                KeyStroke.getKeyStroke(KeyEvent.VK_R,
                         InputEvent.CTRL_DOWN_MASK));
 
         JMenuItem jmiExit = new JMenuItem("Exit",
@@ -97,78 +178,14 @@ public class Panel implements ActionListener {
                         InputEvent.CTRL_DOWN_MASK));
 
         jmFile.add(jmiOpen);
-        jmFile.add(jmiClose);
-        jmFile.add(jmiSave);
+        jmFile.add(jmiReload);
         jmFile.addSeparator();
         jmFile.add(jmiExit);
         jmb.add(jmFile);
 
         jmiOpen.addActionListener(this);
-        jmiClose.addActionListener(this);
-        jmiSave.addActionListener(this);
+        jmiReload.addActionListener(this);
         jmiExit.addActionListener(this);
-    }
-
-    // Utworzenie menu Opcje
-    void makeOptionsMenu() {
-        JMenu jmOptions = new JMenu("Options");
-
-        // Utworzenie podmenu Kolory
-        JMenu jmColors = new JMenu("Kolory ");
-
-        // Tworzy elementy menu z polami wyboru i dodaje je do podmenu Kolory, dzięki
-        // czemu użytkownik będzie mógł wybrać więcej niż jeden kolor
-        JCheckBoxMenuItem jmiRed = new JCheckBoxMenuItem("Czerwony");
-        JCheckBoxMenuItem jmiGreen = new JCheckBoxMenuItem("Zielony");
-        JCheckBoxMenuItem jmiBlue = new JCheckBoxMenuItem("Niebieski");
-
-        // Dodaje elementy do podmenu Kolory
-        jmColors.add(jmiRed);
-        jmColors.add(jmiGreen);
-        jmColors.add(jmiBlue);
-        jmOptions.add(jmColors);
-
-        // Utworzenie podmenu Priorytet
-        JMenu jmPriority = new JMenu("Priorytet");
-
-        // Tworzy elementy menu z przyciskami opcji i dodaje je do menu Priorytet;
-        // w ten sposób możemy pokazać aktualnie wybrany priorytet,
-        // a jednocześnie mamy pewność, że w dowolnej chwili będzie wybrany
-        // tylko jeden priorytet; warto zwrócić uwagę, że początkowo zostanie
-        // zaznaczona opcja „Wysoki”
-        JRadioButtonMenuItem jmiHigh =
-                new JRadioButtonMenuItem("Wysoki", true);
-        JRadioButtonMenuItem jmiLow =
-                new JRadioButtonMenuItem("Niski");
-
-        // Dodaje elementy do podmenu Priorytet
-        jmPriority.add(jmiHigh);
-        jmPriority.add(jmiLow);
-        jmOptions.add(jmPriority);
-
-        // Tworzy grupę przycisków dla elementów menu zawierających
-        // przyciski opcji
-        ButtonGroup bg = new ButtonGroup();
-        bg.add(jmiHigh);
-        bg.add(jmiLow);
-
-        // Tworzy opcję Resetuj
-        JMenuItem jmiReset = new JMenuItem("Resetuj");
-        jmOptions.addSeparator();
-        jmOptions.add(jmiReset);
-
-        // Wreszcie całe menu Opcje jest dodawane do paska menu
-        jmb.add(jmOptions);
-
-        // Określa obiekty nasłuchujące dla wszystkich elementów
-        // menu Opcje, z wyjątkiem elementów w podmenu
-        // Uruchamianie
-        jmiRed.addActionListener(this);
-        jmiGreen.addActionListener(this);
-        jmiBlue.addActionListener(this);
-        jmiHigh.addActionListener(this);
-        jmiLow.addActionListener(this);
-        jmiReset.addActionListener(this);
     }
 
     // Tworzy menu Pomoc
@@ -187,110 +204,145 @@ public class Panel implements ActionListener {
         // Określa obiekt nasłuchujący
         jmiAbout.addActionListener(this);
     }
-
 }
 
-class DataPanel extends JPanel  {
+class DataPanel extends JPanel implements ActionListener, FocusListener {
 
-    ArrayList<RecordModel> records;
-    String line = "";
-    File data;
-    String[] headers = {"Date", "Value", "Consumption"};
-    ArrayList<String> headers2 = new ArrayList<String>();
+    DefaultTableModel tableModel;
+    JTable table;
+    RecordsOfUtilityModel records;
+    ScrollPane pane;
+    JToolBar jtb;
+    String name;
+    JLabel label;
+    JButton button;
 
-
-    public DataPanel() throws IOException, ParseException {
-//        text = new StringBuilder();
+    public DataPanel(RecordsOfUtilityModel records, String name) {
         this.setLayout(new BorderLayout());
-        records = new ArrayList<>();
-        data = new File("data_utility.txt");
-        loadData();
+        this.records = records;
+        this.name = name;
+        buildTable();
+        loadDataToTable();
     }
 
-    public void loadData() throws IOException, ParseException {
-//        enters = new String[][];
-        System.out.print("load data");
-        if(data.exists()) {
-            BufferedReader br = new BufferedReader(new FileReader(data));
-            while ((line = br.readLine()) != null) {
-                SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
-//                Pattern datePattern = Pattern.compile("\\d{2}-\\d{2}-\\d{4}");
-//                Matcher dateMatcher = datePattern.matcher(line);
-//                String dateFromLine = "";
-////                String dateFromLine = datePattern.matcher(line).group(1);
-//                if(dateMatcher.find()) dateFromLine = dateMatcher.group(0);
-//                System.out.print(dateFromLine);
-                Date date = formatter.parse(line);
-                RecordModel rec = new RecordModel(date, 28.0f);
-                records.add(rec);
-//                text.append(line);
-            }
-            br.close();
-        }
-//        else text = new StringBuilder("File with data doesn't exist." +
-//                "Set up a new utility recorder or load data from a file from an external location.");
-        DefaultTableModel tableModel = new DefaultTableModel();
+    private void buildTable() {
+
+        tableModel = new DefaultTableModel();
+        table = new JTable(tableModel);
+        pane = new ScrollPane();
+        jtb = new JToolBar("Actions");
+        label = new JLabel();
+
+        tableModel.addColumn("No.");
         tableModel.addColumn("Date");
-        tableModel.addColumn("State");
+        tableModel.addColumn("Value");
         tableModel.addColumn("Consumption");
-        tableModel.addRow(headers);
-        JTable table = new JTable(tableModel);
+
         table.setPreferredScrollableViewportSize(new Dimension(600, 100));
         table.setFillsViewportHeight(true);
-        TableColumn col1 = new TableColumn(0, 21);
 
+        button = new JButton("Save Changes");
+        button.addActionListener(this);
+        button.addFocusListener(this);
 
-        table.setEnabled(false);
+        TableColumn column = null;
+        for (int i = 0; i < 4; i++) {
+            column = table.getColumnModel().getColumn(i);
+            if (i == 0) {
+                column.setPreferredWidth(30);
+                column.setMaxWidth(30);
+            } else {
+                column.setPreferredWidth(100);
+            }
+        }
         table.setRowSelectionAllowed(true);
 
+        add(table.getTableHeader(), BorderLayout.PAGE_START);
+        pane.add(table, BorderLayout.PAGE_START);
+        add(pane);
+        jtb.setLayout(new BorderLayout());
+        jtb.add(button, BorderLayout.WEST);
+        jtb.add(label, BorderLayout.EAST);
+        add(jtb, BorderLayout.SOUTH);
+    }
 
-//        table.setBounds(30, 40, 200, 600);
-//        table.setSize(600,300);
+    private void loadDataToTable() {
+
         SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
-        float consumption = 0;
+        float consumption;
         float lastValue = 0;
-        for(RecordModel rm : records) {
-            consumption = rm.getValue() - lastValue;
+        boolean isFirstRecord = true;
+        int count = 1;
+        for (RecordModel rm : records.getRecords()) {
+            if (isFirstRecord) consumption = 0;
+            else consumption = rm.getValue() - lastValue;
             lastValue = rm.getValue();
-            tableModel.addRow(new Object[]{formatter.format(rm.getDate()), rm.getValue(), consumption});
-        }
-
-//        JTextArea textArea = new JTextArea(text.toString(), 25, 35);
-//        add(textArea);
-
-        add(new ScrollPane().add(table));
-
-    }
-
-    public class SimpleHeaderRenderer extends JLabel implements TableCellRenderer {
-
-        public SimpleHeaderRenderer() {
-            setFont(new Font("Consolas", Font.BOLD, 14));
-            setForeground(Color.BLUE);
-            setBorder(BorderFactory.createEtchedBorder());
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(JTable table, Object value,
-                                                       boolean isSelected, boolean hasFocus, int row, int column) {
-            setText(value.toString());
-            return this;
+            tableModel.addRow(new Object[]{count + ".", formatter.format(rm.getDate()), rm.getValue(),
+                    String.format("%.01f", consumption)});
+            count += 1;
+            isFirstRecord = false;
         }
     }
 
-}
+    public void saveData(String name) throws IOException {
+        ArrayList<String> numdata = new ArrayList<>();
+        String line;
+        String dateFromTable;
+        String dataLineFromTable;
+        for (int count = 0; count < tableModel.getRowCount(); count++) {
+            dateFromTable = tableModel.getValueAt(count, 1).toString();
+            dataLineFromTable = ">" + dateFromTable + ": " + tableModel.getValueAt(count, 2).toString();
+            numdata.add(dataLineFromTable);
+        }
 
+        File destination = new File("data_utility.txt");
+        File newFile = new File("temp.txt");
 
+        BufferedReader br = new BufferedReader(new FileReader(destination));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(newFile));
 
-class DiagramPanel extends JPanel {
+        while ((line = br.readLine()) != null) {
+            String encLine = new String(line.getBytes(StandardCharsets.UTF_8));
+            if (encLine.startsWith(name)) {
+                bw.write(name);
+                bw.write('\n');
+                for (String s : numdata) {
+                    bw.write(s);
+                    bw.write('\n');
+                }
+                while (br.readLine().startsWith(">")) ;
+            } else {
+                bw.write(encLine);
+            }
+            bw.write('\n');
+        }
+        br.close();
+        bw.close();
+        destination.delete();
+        newFile.renameTo(destination);
+    }
 
-    public DiagramPanel() {
-        JCheckBox cb1 = new JCheckBox("Czerwony");
-        add(cb1);
-        JCheckBox cb2 = new JCheckBox("Zielony");
-        add(cb2);
-        JCheckBox cb3 = new JCheckBox("Niebieski");
-        add(cb3);
+    @Override
+    public void actionPerformed(ActionEvent ae) {
+        String comStr = ae.getActionCommand();
+        if (comStr.equals("Save Changes")) {
+            try {
+                saveData(name);
+                label.setText("Data saved");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Override
+    public void focusGained(FocusEvent e) {
+
+    }
+
+    @Override
+    public void focusLost(FocusEvent e) {
+        label.setText("");
     }
 }
 
@@ -314,7 +366,7 @@ class EnterDataPanel extends JPanel implements ActionListener {
     public void actionPerformed(ActionEvent ae) {
 //        file.createNewFile()
         String comStr = ae.getActionCommand();
-        if(comStr.equals("Save")) {
+        if (comStr.equals("Save")) {
             File data = new File("data_utility.txt");
             try {
                 FileWriter fr = new FileWriter(data, true);

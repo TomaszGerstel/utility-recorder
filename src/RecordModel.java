@@ -9,6 +9,10 @@ public class RecordModel {
         this.value = value;
     }
 
+    public RecordModel() {
+
+    }
+
     public Date getDate() {
         return date;
     }
@@ -23,5 +27,13 @@ public class RecordModel {
 
     public void setValue(Float value) {
         this.value = value;
+    }
+
+    @Override
+    public String toString() {
+        return "RecordModel{" +
+                "date=" + date +
+                ", value=" + value +
+                '}';
     }
 }
