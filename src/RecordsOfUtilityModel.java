@@ -35,7 +35,7 @@ public class RecordsOfUtilityModel {
     }
 
     public void addRecord(RecordModel record) {
-//        setRecords(new ArrayList<>());
+
         this.records.add(record);
 
     }
