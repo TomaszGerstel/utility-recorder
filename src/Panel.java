@@ -1,23 +1,17 @@
 import javax.swing.*;
-import javax.swing.event.CellEditorListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.event.TableModelListener;
-import javax.swing.plaf.TableHeaderUI;
-import javax.swing.plaf.basic.BasicTableHeaderUI;
-import javax.swing.plaf.metal.MetalBorders;
-import javax.swing.table.*;
-import javax.swing.text.TableView;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.sql.SQLOutput;
 import java.text.ParseException;
 import java.text.ParsePosition;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.EventObject;
 import java.util.Iterator;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -31,7 +25,6 @@ public class Panel implements ActionListener {
     JToolBar jtb;
     JButton button;
     JButton button2;
-//    JPopupMenu jpu;
 
     public Panel() throws IOException, ParseException {
 
@@ -98,7 +91,7 @@ public class Panel implements ActionListener {
             record = parseToRecordModel(line);
             if (record != null) utilityRecord.addRecord(record);
         }
-        utilityRecord = filterWrongRecords(utilityRecord);
+        filterWrongRecords(utilityRecord);
         return utilityRecord;
     }
 
@@ -108,8 +101,8 @@ public class Panel implements ActionListener {
         RecordModel rec;
         while (iterator.hasNext()) {
             rec = iterator.next();
-            if (rec.getValue() < val) records.getRecords().remove(rec);
-            val = rec.getValue();
+            if (rec.getValue() < val) iterator.remove();
+            else val = rec.getValue();
         }
         return records;
     }
@@ -214,22 +207,17 @@ public class Panel implements ActionListener {
 
     void makeHelpMenu() {
         JMenu jmHelp = new JMenu("Help");
-
-        // Dodaje ikonę do elementu menu
-//        ImageIcon icon = new ImageIcon("AboutIcon.gif");
-
         JMenuItem jmiAbout = new JMenuItem("About...");
-//        JMenuItem jmiAbout = new JMenuItem("O programie", icon);
+
         jmiAbout.setToolTipText("About this tool...");
         jmHelp.add(jmiAbout);
         jmb.add(jmHelp);
 
-        // Określa obiekt nasłuchujący
         jmiAbout.addActionListener(this);
     }
 }
 
-class DataPanel extends JPanel implements ActionListener, FocusListener {
+class DataPanel extends JPanel implements ActionListener, FocusListener, TableModelListener {
 
     DefaultTableModel tableModel;
     JTable table;
@@ -242,6 +230,10 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
     JButton deleteButton;
     String inputDefaultInfo = "You can adding, deleting and changing the data in table";
     JDialog dialog;
+    File currentFile;
+    File newFile;
+    BufferedReader br;
+    BufferedWriter bw;
 
     public DataPanel(RecordsOfUtilityModel records, String name) {
         this.setLayout(new BorderLayout());
@@ -286,8 +278,6 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
         jtb.setLayout(new BorderLayout());
         JPanel buttonpanel = new JPanel();
         jtb.add(buttonpanel, BorderLayout.WEST);
-//        jtb.add(saveButton, BorderLayout.WEST);
-//        jtb.add(deleteButton);
         buttonpanel.add(saveButton);
         buttonpanel.add(deleteButton);
         deleteButton.setSize(saveButton.getWidth(), saveButton.getHeight());
@@ -324,20 +314,35 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
                     String.format("%.01f", consumption)});
             count += 1;
         }
+        addEmptyRow();
+        tableModel.addTableModelListener(this);
+    }
+
+    private void addEmptyRow() {
         tableModel.addRow(new Object[]{"", "", "", ""});
     }
 
-    public void saveData(String name) throws IOException {
+    public void saveData() throws IOException {
 
         ArrayList<String> tableData = getDataFromTable();
-
-        File currentFile = new File("data_utility.txt");
-        File newFile = new File("temp_data.txt");
-        BufferedReader br = new BufferedReader(new FileReader(currentFile));
-        BufferedWriter bw = new BufferedWriter(new FileWriter(newFile));
-
+        getReaderAndWriter();
         copyAndRewriteData(br, bw, tableData);
+        currentFile.delete();
+        newFile.renameTo(currentFile);
+    }
 
+    private void getReaderAndWriter() throws IOException {
+
+        currentFile = new File("data_utility.txt");
+        newFile = new File("temp_data.txt");
+        br = new BufferedReader(new FileReader(currentFile));
+        bw = new BufferedWriter(new FileWriter(newFile));
+    }
+
+    private void deleteData() throws IOException {
+
+        getReaderAndWriter();
+        copyAndRewriteData(br, bw, null);
         currentFile.delete();
         newFile.renameTo(currentFile);
     }
@@ -348,7 +353,8 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
         while ((line = br.readLine()) != null) {
             String encLine = new String(line.getBytes(StandardCharsets.UTF_8));
             if (encLine.startsWith(name)) {
-                rewriteCurrentUtility(bw, tableData);
+                if (tableData != null) rewriteCurrentUtility(bw, tableData);
+//                else br.readLine();
                 // skip old data in current utility
                 while ((line = br.readLine()) != null && line.startsWith(">")) ;
             } else {
@@ -362,7 +368,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
 
     private void rewriteCurrentUtility(BufferedWriter bw, ArrayList<String> tableData) throws IOException {
         bw.write(name);
-        bw.write('\n');
+        bw.write("\n");
         for (String s : tableData) {
             bw.write(s);
             bw.write('\n');
@@ -372,22 +378,44 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
     private ArrayList<String> getDataFromTable() {
 
         ArrayList<String> numdata = new ArrayList<>();
+
+
         String dateFromTable;
         String dataLineFromTable;
-        for (int count = 0; count < tableModel.getRowCount(); count++) { // wyodrębnić
+        String valueFromTable;
+        for (int count = 0; count < tableModel.getRowCount(); count++) {
             dateFromTable = tableModel.getValueAt(count, 1).toString();
-            dataLineFromTable = ">" + dateFromTable + ": " + tableModel.getValueAt(count, 2).toString();
-            if (dateFromTable != null) numdata.add(dataLineFromTable);
+            valueFromTable = tableModel.getValueAt(count, 2).toString();
+            dataLineFromTable = ">" + dateFromTable + ": " + valueFromTable;
+            if (dateHasCorrectFormat(dateFromTable) && isCorrectValue(valueFromTable)) numdata.add(dataLineFromTable);
         }
         return numdata;
     }
+
+    private boolean dateHasCorrectFormat(String date) {
+        SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
+        try {
+            formatter.parse(date);
+        } catch (ParseException e) {
+//            e.printStackTrace();
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isCorrectValue (String val) {
+        Pattern cleanValue = Pattern.compile("\\d+\\.*\\d*");
+        Matcher cleanValueMatch = cleanValue.matcher(val);
+        return cleanValueMatch.find();
+    }
+
 
     @Override
     public void actionPerformed(ActionEvent ae) {
         String comStr = ae.getActionCommand();
         if (comStr.equals("Save Changes")) {
             try {
-                saveData(name);
+                saveData();
                 label.setText("Data saved. Reload data.");
             } catch (IOException e) {
                 e.printStackTrace();
@@ -396,14 +424,36 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
         if (comStr.equals("Delete Utility")) {
             showDialogToDelete();
         }
+        if (comStr.equals("No")) dialog.dispose();
+        if (comStr.equals("Yes")) {
+            try {
+                deleteData();
+                dialog.dispose();
+                label.setText("Data deleted. Reload data.");
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        ;
     }
 
     private void showDialogToDelete() {
-        dialog.setTitle("Delete");
+        JPanel panel = new JPanel();
+        JButton noButton = new JButton("No");
+        JButton yesButton = new JButton("Yes");
+        noButton.addActionListener(this);
+        yesButton.addActionListener(this);
+        dialog.setTitle("Delete Utility");
+        dialog.setResizable(false);
         dialog.setDefaultCloseOperation(WindowConstants.HIDE_ON_CLOSE);
-        dialog.setSize(200, 100);
+        dialog.setSize(250, 110);
         dialog.setLocationRelativeTo(this);
         dialog.setAutoRequestFocus(true);
+        dialog.add(panel);
+        panel.add(new Label(
+                "Do you really want to delete this utility?"));
+        panel.add(yesButton);
+        panel.add(noButton);
         dialog.setVisible(true);
         dialog.addWindowFocusListener(new WindowAdapter() {
             @Override
@@ -411,11 +461,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
                 dialog.dispose();
             }
         });
-
-
     }
-
-
 
     @Override
     public void focusGained(FocusEvent e) {
@@ -427,6 +473,15 @@ class DataPanel extends JPanel implements ActionListener, FocusListener {
     public void focusLost(FocusEvent e) {
         String com = e.getComponent().getName();
         if (com.equals("Save")) label.setText(inputDefaultInfo);
+    }
+
+    @Override
+    public void tableChanged(TableModelEvent e) {
+        int lastRow = tableModel.getRowCount() - 1;
+        if (!tableModel.getValueAt(lastRow, 2).equals("")) {
+            addEmptyRow();
+        }
+
     }
 }
 
@@ -463,17 +518,17 @@ class EnterDataPanel extends JPanel implements ActionListener {
             if (addData.getText().length() > 1) {
                 File data = new File("data_utility.txt");
                 try {
-                    FileWriter fr = new FileWriter(data, true);
-                    fr.write("\n\n");
-                    fr.write("*");
-                    fr.write(addData.getText());
-                    fr.close();
+                    FileWriter fw = new FileWriter(data, true);
+                    fw.write("\n\n");
+                    fw.write("*");
+                    fw.write(addData.getText());
+                    fw.close();
                     label.setText("New utility saved. Reload data and go to loaded utilities");
+                    addData.setText("");
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-            }
-            else label.setText("name is to short");
+            } else label.setText("name is too short");
         }
     }
 
