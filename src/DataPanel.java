@@ -115,6 +115,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         float lastValue = 0;
         int count = 0;
         float total = 0;
+        float average;
         for (RecordModel rm : records.getRecords()) {
             if (count == 0) consumption = 0;
             else {
@@ -129,9 +130,10 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         }
         addEmptyRow();
         tableModel.addTableModelListener(this);
+        average = total/(count-1);
         calcLabel.setText(" total consumption: " + String.format("%.01f", total) + "   average: "
-                +  String.format("%.01f", (total/(count-1))));
-        if(dateConsumption.size() > 1) pane.add(new DiagramPanel(dateConsumption), BorderLayout.CENTER);
+                +  String.format("%.01f", average));
+        if(dateConsumption.size() > 1) pane.add(new DiagramPanel(dateConsumption, average), BorderLayout.CENTER);
     }
 
     private void addEmptyRow() {
@@ -253,7 +255,6 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
                 e.printStackTrace();
             }
         }
-        ;
     }
 
     private void showDialogToDelete() {
@@ -274,6 +275,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         panel.add(yesButton);
         panel.add(noButton);
         dialog.setVisible(true);
+
         dialog.addWindowFocusListener(new WindowAdapter() {
             @Override
             public void windowLostFocus(WindowEvent e) {

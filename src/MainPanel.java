@@ -1,4 +1,5 @@
 import javax.swing.*;
+import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -24,6 +25,7 @@ public class MainPanel implements ActionListener {
     JButton button;
     JButton button2;
     File data;
+    AboutDialog aboutDialog;
 
     public MainPanel() throws IOException {
 
@@ -84,6 +86,11 @@ public class MainPanel implements ActionListener {
         fw.write("// e.g: >31-01-2022: 123.5,\n");
         fw.write("// before next utility have to be empty line\n");
         fw.close();
+    }
+
+    private void showAboutInfo() {
+        aboutDialog = new AboutDialog("Info");
+        aboutDialog.setLocationRelativeTo(jfrm);
     }
 
     private ArrayList<RecordsOfUtilityModel> loadData() throws IOException {
@@ -176,7 +183,10 @@ public class MainPanel implements ActionListener {
 //                Logger.getLogger(NumberAdditionUI.class.getName()).log(Level.SEVERE, null, ex);
             }
         }
+        if (comStr.equals("About...")) showAboutInfo();
+
     }
+
 
     public void reloadTabsAndData() {
         jtp.removeAll();

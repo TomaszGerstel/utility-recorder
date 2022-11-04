@@ -5,39 +5,89 @@ import java.util.stream.Stream;
 
 class DiagramPanel extends JPanel {
 
-    Insets ins;
     LinkedHashMap<Date, Float> records;
     Set<Map.Entry<Date, Float>> recordsToIterable;
     Stream<Map.Entry<Date, Float>> recStream;
     int height, width;
     final float marginYRatio = 10;
+    float average;
+    int leftEdgeOfDiagram, bottomEdgeOfDiagram, topEdgeOfDiagram, rightEdgeOfDiagram;
+    int bottomEdgeOfDrawing, topEdgeOfDrawing;
+    int recNumbers;
+    int[] xPoints, yPoints;
+    float[] values;
+    float yScale;
+    float drawingHeight;
 
-    DiagramPanel(LinkedHashMap<Date, Float> records) {
+
+    DiagramPanel(LinkedHashMap<Date, Float> records, float average) {
 
         this.records = records;
+        this.average = average;
         recordsToIterable = records.entrySet();
+        recNumbers = recordsToIterable.size();
+        xPoints = new int[recNumbers];
+        yPoints = new int[recNumbers];
+        values = new float[recNumbers];
         setBorder(BorderFactory.createLineBorder(Color.DARK_GRAY, 1));
         setMinimumSize(new Dimension(500, 250));
         setPreferredSize(new Dimension(550, 250));
     }
 
     protected void paintComponent(Graphics g) {
-        // Zawsze należy najpierw wywołać met. nadklasy
         super.paintComponent(g);
         height = getHeight();
         width = getWidth();
-        ins = getInsets();
-        int recNumbers = recordsToIterable.size();
-//        double scale = getYScale();
+        leftEdgeOfDiagram = width/40;
+        bottomEdgeOfDiagram = height-(height/20);
+        topEdgeOfDiagram = height/20;
+        rightEdgeOfDiagram = width-width/40;
+        bottomEdgeOfDrawing = bottomEdgeOfDiagram-(height/20);
+        topEdgeOfDrawing = topEdgeOfDiagram + height/20;
+        drawingHeight = height - (height-bottomEdgeOfDrawing) - topEdgeOfDrawing;
 
-        int[] xPoints = new int[recNumbers];
-        int[] yPoints = new int[recNumbers];
-        float[] values = new float[recNumbers];
+        yScale = getYScale();
+
+        generateDataToDiagram();
+        drawDiagramLines(g);
+        drawAverageLine(g);
+
+        Graphics2D g2 = (Graphics2D) g;
+        drawDiagram(g2);
+        drawPoints(g2);
+    }
+
+    private void drawDiagram(Graphics2D g2) {
+        g2.setStroke(new BasicStroke(3));
+        g2.setColor(Color.ORANGE);
+        g2.drawPolyline(xPoints, yPoints, recNumbers);
+    }
+
+    private void drawPoints(Graphics2D g) {
+        g.setStroke(new BasicStroke(5));
+        g.setColor(Color.GRAY);
+        for(int i = 0; i < recNumbers; i++) {
+            g.fillOval(xPoints[i]-3, yPoints[i]-3, 6,6);
+            g.drawString(String.valueOf(values[i]), xPoints[i], yPoints[i]);
+        }
+    }
+
+//    private int roundToFullNumberLevel(float n) {
+//        int m =  Math.round(n);
+//        int rank = 1;
+//        int it = String.valueOf(m).length() - 1;
+//        for(int i = 0; i < it; i++) {
+//            rank = rank * 10;
+//        }
+//        m = m / rank * rank;
+//        return m;
+//    }
+
+    private void generateDataToDiagram() {
 
         int xStep = (width) / (recNumbers+1);
         int xStepCum = xStep;
         int tabIndex = 0;
-
         for (Map.Entry<Date, Float> entry : recordsToIterable) {
             xPoints[tabIndex] = xStepCum;
             yPoints[tabIndex] = getYToPoint(entry.getValue());
@@ -45,66 +95,24 @@ class DiagramPanel extends JPanel {
             xStepCum += xStep;
             tabIndex += 1;
         }
-
-
-
-
-//        int val = (int)Math.floor(getMin());
-
-//        float yScale = getYScale();
-//        int minValue = getMin();
-//        int minLineY = Math.round(roundToFullNumberLevel(minValue) * yScale);
-
-        g.drawLine(width/40, height-(height/20), width/40, height/20);
-        g.drawLine(width/40, (height-(height/20)),width-width/40, (height-(height/20)));
-
-//        g.drawLine(width/40, height-minLineY, width-width/40, height-minLineY);
-
-
-        Graphics2D g2 = (Graphics2D) g;
-        g2.setStroke(new BasicStroke(3));
-        g2.setColor(Color.ORANGE);
-        g2.drawPolyline(xPoints, yPoints, recordsToIterable.size());
-
-        g2.setStroke(new BasicStroke(5));
-        g2.setColor(Color.GRAY);
-
-//        g.fillOval(xPoints[1]-3, yPoints[1]-3, 6,6);
-//        g.fillOval(xPoints[2], yPoints[2], 6,6);
-
-        for(int i = 0; i < recNumbers; i++) {
-            g.fillOval(xPoints[i]-3, yPoints[i]-3, 6,6);
-            g.drawString(String.valueOf(values[i]), xPoints[i], yPoints[i]);
-        }
-
-
-
-//        g.drawString(String.valueOf(val), width/30, (int)Math.floor(getMin()));
-
-
-
-
-
-
     }
 
-    private int roundToFullNumberLevel(float n) {
-        int m =  Math.round(n);
-        int rank = 1;
-        int it = String.valueOf(m).length() - 1;
-
-        for(int i = 0; i < it; i++) {
-            rank = rank * 10;
-        }
-        m = m / rank * rank;
-        return m;
+    private void drawDiagramLines(Graphics g) {
+        g.drawLine(leftEdgeOfDiagram, bottomEdgeOfDiagram, leftEdgeOfDiagram, topEdgeOfDiagram);
+        g.drawLine(leftEdgeOfDiagram, bottomEdgeOfDiagram, rightEdgeOfDiagram, bottomEdgeOfDiagram);
     }
 
+    private void drawAverageLine(Graphics g) {
+        g.drawLine(leftEdgeOfDiagram, Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale)),
+                width-width/40, Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale)));
+        g.drawString("average: "+ String.format("%.01f", average), leftEdgeOfDiagram+5,
+                Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale))-5);
+    }
 
     private float getYScale() {
         float range = getRangeY();
         if (range == 0) range = getMaxY() * 2;
-        return ((height-(height/(marginYRatio/2))) / range);
+        return (drawingHeight / range);
     }
 
     private float getRangeY() {
