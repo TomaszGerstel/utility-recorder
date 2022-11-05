@@ -40,7 +40,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         this.records = records;
         this.name = name;
         buildPanelWithTable();
-        loadDataToTable();
+        loadDataToTableAndDiagram();
     }
 
     private void buildPanelWithTable() {
@@ -59,7 +59,6 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         tableModel.addColumn("Value");
         tableModel.addColumn("Consumption");
 
-//        table.setPreferredScrollableViewportSize(new Dimension(600, 300));
         table.setFillsViewportHeight(true);
         table.setCellSelectionEnabled(true);
 
@@ -67,6 +66,7 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         saveButton.setName("Save");
         deleteButton = new JButton("Delete Utility");
         deleteButton.setName("Delete");
+
         saveButton.addActionListener(this);
         deleteButton.addActionListener(this);
         saveButton.addFocusListener(this);
@@ -106,38 +106,45 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         }
     }
 
-    private void loadDataToTable() {
+    private void loadDataToTableAndDiagram() {
 
-        SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
-        LinkedHashMap<Date, Float> dateConsumption = new LinkedHashMap<>();
-
-        float consumption;
+        LinkedHashMap<Date, Float> diagramData = new LinkedHashMap<>();
+        float consumption, average;
         float lastValue = 0;
         int count = 0;
         float total = 0;
-        float average;
         for (RecordModel rm : records.getRecords()) {
             if (count == 0) consumption = 0;
             else {
                 consumption = rm.getValue() - lastValue;
-                dateConsumption.put(rm.getDate(),  Float.parseFloat(String.format("%.01f", consumption).replace(",",".")));
+                diagramData.put(rm.getDate(), Float.parseFloat(String.format("%.01f", consumption)
+                        .replace(",", ".")));
                 total += consumption;
             }
             lastValue = rm.getValue();
-            tableModel.addRow(new Object[]{count + ".", formatter.format(rm.getDate()), String.format("%.01f", rm.getValue()),
-                    String.format("%.01f", consumption)});
+            addRowToTable(count, rm.getDate(), rm.getValue(), consumption);
             count += 1;
         }
         addEmptyRow();
         tableModel.addTableModelListener(this);
-        average = total/(count-1);
-        calcLabel.setText(" total consumption: " + String.format("%.01f", total) + "   average: "
-                +  String.format("%.01f", average));
-        if(dateConsumption.size() > 1) pane.add(new DiagramPanel(dateConsumption, average), BorderLayout.CENTER);
+        average = total / (count - 1);
+        addCalcLabelInfo(total, average);
+        if (diagramData.size() > 1) pane.add(new DiagramPanel(diagramData, average), BorderLayout.CENTER);
+    }
+
+    private void addRowToTable(int count, Date date, float value, float consumption) {
+        SimpleDateFormat formatter = new SimpleDateFormat("dd-MM-yyyy");
+        tableModel.addRow(new Object[]{count + ".", formatter.format(date), String.format("%.01f", value),
+                String.format("%.01f", consumption)});
     }
 
     private void addEmptyRow() {
         tableModel.addRow(new Object[]{"", "", "", ""});
+    }
+
+    private void addCalcLabelInfo(float total, float average) {
+        calcLabel.setText(" total consumption: " + String.format("%.01f", total) + "   average: "
+                + String.format("%.01f", average));
     }
 
     public void saveData() throws IOException {
@@ -170,9 +177,9 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         String line;
         int emptyLinesCounter = 0;
         while ((line = br.readLine()) != null) {
-            if(line.isEmpty()) emptyLinesCounter++;
+            if (line.isEmpty()) emptyLinesCounter++;
             else emptyLinesCounter = 0;
-            if(emptyLinesCounter > 1) continue;
+            if (emptyLinesCounter > 1) continue;
             String encLine = new String(line.getBytes(StandardCharsets.UTF_8));
             if (encLine.startsWith(name)) {
                 if (tableData != null) rewriteCurrentUtility(bw, tableData);
@@ -199,8 +206,6 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
     private ArrayList<String> getDataFromTable() {
 
         ArrayList<String> numdata = new ArrayList<>();
-
-
         String dateFromTable;
         String dataLineFromTable;
         String valueFromTable;
@@ -224,12 +229,11 @@ class DataPanel extends JPanel implements ActionListener, FocusListener, TableMo
         return true;
     }
 
-    private boolean isCorrectValue (String val) {
+    private boolean isCorrectValue(String val) {
         Pattern cleanValue = Pattern.compile("\\d+\\.*\\d*");
         Matcher cleanValueMatch = cleanValue.matcher(val);
         return cleanValueMatch.find();
     }
-
 
     @Override
     public void actionPerformed(ActionEvent ae) {

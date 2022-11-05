@@ -1,5 +1,4 @@
 import javax.swing.*;
-import javax.swing.text.BadLocationException;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -73,7 +72,7 @@ public class MainPanel implements ActionListener {
     }
 
     private void loadDefaultDataToFile() throws IOException {
-//        BufferedWriter bw = new BufferedWriter(new Fi)
+
         FileWriter fw = new FileWriter(data);
         fw.write("// this is the data file of tool 'Utility Recorder'\n");
         fw.write("// this tool allows you to monitor the consumption of utilities\n");

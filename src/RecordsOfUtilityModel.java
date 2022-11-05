@@ -1,8 +1,3 @@
-import com.sun.source.tree.Tree;
-
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.TreeSet;
 
 public class RecordsOfUtilityModel {
@@ -35,9 +30,7 @@ public class RecordsOfUtilityModel {
     }
 
     public void addRecord(RecordModel record) {
-
         this.records.add(record);
-
     }
 
     @Override

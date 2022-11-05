@@ -21,7 +21,6 @@ class EnterDataPanel extends JPanel implements ActionListener {
         toolBar = new JToolBar("Info");
         label = new JLabel("Enter name of new utility");
         panel = new JPanel(new FlowLayout(1, 10, 50));
-
         button.addActionListener(this);
         addData.addActionListener(this);
         toolBar.add(label);
@@ -39,11 +38,7 @@ class EnterDataPanel extends JPanel implements ActionListener {
             if (addData.getText().length() > 1) {
                 File data = new File("data_utility.txt");
                 try {
-                    FileWriter fw = new FileWriter(data, true);
-                    fw.write("\n\n");
-                    fw.write("*");
-                    fw.write(addData.getText());
-                    fw.close();
+                    writeNewUtility(data);
                     label.setText("New utility saved. Reload data and go to loaded utilities");
                     addData.setText("");
                 } catch (IOException e) {
@@ -53,4 +48,11 @@ class EnterDataPanel extends JPanel implements ActionListener {
         }
     }
 
+    private void writeNewUtility(File data) throws IOException {
+        try(FileWriter fw = new FileWriter(data, true)) {
+            fw.write("\n\n");
+            fw.write("*");
+            fw.write(addData.getText());
+        }
+    }
 }

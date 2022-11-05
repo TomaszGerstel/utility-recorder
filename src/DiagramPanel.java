@@ -1,6 +1,9 @@
 import javax.swing.*;
 import java.awt.*;
-import java.util.*;
+import java.util.Date;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Stream;
 
 class DiagramPanel extends JPanel {
@@ -16,7 +19,7 @@ class DiagramPanel extends JPanel {
     int recNumbers;
     int[] xPoints, yPoints;
     float[] values;
-    float yScale;
+    float yScale, minY;
     float drawingHeight;
 
 
@@ -38,15 +41,16 @@ class DiagramPanel extends JPanel {
         super.paintComponent(g);
         height = getHeight();
         width = getWidth();
-        leftEdgeOfDiagram = width/40;
-        bottomEdgeOfDiagram = height-(height/20);
-        topEdgeOfDiagram = height/20;
-        rightEdgeOfDiagram = width-width/40;
-        bottomEdgeOfDrawing = bottomEdgeOfDiagram-(height/20);
-        topEdgeOfDrawing = topEdgeOfDiagram + height/20;
-        drawingHeight = height - (height-bottomEdgeOfDrawing) - topEdgeOfDrawing;
+        leftEdgeOfDiagram = width / 40;
+        bottomEdgeOfDiagram = height - (height / 20);
+        topEdgeOfDiagram = height / 20;
+        rightEdgeOfDiagram = width - width / 40;
+        bottomEdgeOfDrawing = bottomEdgeOfDiagram - (height / 20);
+        topEdgeOfDrawing = topEdgeOfDiagram + height / 20;
+        drawingHeight = height - (height / 5);
 
         yScale = getYScale();
+        minY = getMinY();
 
         generateDataToDiagram();
         drawDiagramLines(g);
@@ -66,8 +70,8 @@ class DiagramPanel extends JPanel {
     private void drawPoints(Graphics2D g) {
         g.setStroke(new BasicStroke(5));
         g.setColor(Color.GRAY);
-        for(int i = 0; i < recNumbers; i++) {
-            g.fillOval(xPoints[i]-3, yPoints[i]-3, 6,6);
+        for (int i = 0; i < recNumbers; i++) {
+            g.fillOval(xPoints[i] - 3, yPoints[i] - 3, 6, 6);
             g.drawString(String.valueOf(values[i]), xPoints[i], yPoints[i]);
         }
     }
@@ -85,7 +89,7 @@ class DiagramPanel extends JPanel {
 
     private void generateDataToDiagram() {
 
-        int xStep = (width) / (recNumbers+1);
+        int xStep = (width) / (recNumbers + 1);
         int xStepCum = xStep;
         int tabIndex = 0;
         for (Map.Entry<Date, Float> entry : recordsToIterable) {
@@ -103,10 +107,10 @@ class DiagramPanel extends JPanel {
     }
 
     private void drawAverageLine(Graphics g) {
-        g.drawLine(leftEdgeOfDiagram, Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale)),
-                width-width/40, Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale)));
-        g.drawString("average: "+ String.format("%.01f", average), leftEdgeOfDiagram+5,
-                Math.round(bottomEdgeOfDrawing - (average * yScale) + (getMinY() * yScale))-5);
+        g.drawLine(leftEdgeOfDiagram, Math.round(bottomEdgeOfDrawing - (average * yScale) + (minY * yScale)),
+                width - width / 40, Math.round(bottomEdgeOfDrawing - (average * yScale) + (minY * yScale)));
+        g.drawString("average: " + String.format("%.01f", average), leftEdgeOfDiagram + 5,
+                Math.round(bottomEdgeOfDrawing - (average * yScale) + (minY * yScale)) - 5);
     }
 
     private float getYScale() {
@@ -119,21 +123,21 @@ class DiagramPanel extends JPanel {
         return getMaxY() - getMinY();
     }
 
-    private int getMinY() {
+    private float getMinY() {
         recStream = recordsToIterable.stream();
-        return (int) Math.round(recStream.mapToDouble(Map.Entry::getValue).min().getAsDouble());
+        return (float) recStream.mapToDouble(Map.Entry::getValue).min().getAsDouble();
     }
 
-    private int getMaxY() {
+    private float getMaxY() {
         recStream = recordsToIterable.stream();
-        return (int) Math.round(recStream.mapToDouble(Map.Entry::getValue).max().getAsDouble());
+        return (float) recStream.mapToDouble(Map.Entry::getValue).max().getAsDouble();
     }
 
     private int getYToPoint(double val) {
         float scale = getYScale();
         int y;
-        if(getRangeY() == 0) y = (int) Math.round((height-(height/marginYRatio))  - (val * scale));
-        else y = (int) Math.round((height-(height/marginYRatio))  - (val * scale) + (getMinY() * scale));
+        if (getRangeY() == 0) y = (int) Math.round((topEdgeOfDrawing + drawingHeight) - (val * scale));
+        else y = (int) Math.round((topEdgeOfDrawing + drawingHeight) - (val * scale) + (getMinY() * scale));
         return y;
     }
 }

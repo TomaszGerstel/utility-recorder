@@ -1,7 +1,7 @@
 import javax.swing.*;
-import javax.swing.text.BadLocationException;
 import java.awt.*;
-import java.awt.event.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 class AboutDialog extends JDialog {
 
