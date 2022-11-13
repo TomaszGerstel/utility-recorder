@@ -3,7 +3,7 @@
 ## About
 
 The tool is intended to be used to register utility consumption like for e.g. water or electricity consumption.
-It may also apply to other purposes after some little modifications (can records other things).
+It may also apply to other purposes after some little modifications (can record other things).
 
 ## Technologies
 
