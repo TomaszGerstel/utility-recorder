@@ -1,3 +1,5 @@
+package pl.app;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -132,8 +134,10 @@ public class MainPanel implements ActionListener {
     }
 
     public RecordModel parseToRecordModel(String line) {
-        Pattern utilityValuePatternFromFile = Pattern.compile(":\\s*\\d+\\S*\\s*$");
-        Matcher utilityValueMatcher = utilityValuePatternFromFile.matcher(line);
+        Pattern utilityValuePatternFromFile =
+                Pattern.compile(":\\s*\\d+[.,]?\\d*\\s*$");
+        Matcher utilityValueMatcher =
+                utilityValuePatternFromFile.matcher(line);
         Date date = parseDate(line);
         if (!utilityValueMatcher.find() || date == null) return null;
         return new RecordModel(date, getCleanValue(utilityValueMatcher));
@@ -146,11 +150,11 @@ public class MainPanel implements ActionListener {
     }
 
     public Float getCleanValue(Matcher valueMatcherFromFile) {
-        Pattern cleanValue = Pattern.compile("\\d+\\.*\\d*");
-        Matcher cleanValueMatch = cleanValue.matcher(valueMatcherFromFile.group());
+        Pattern cleanValue = Pattern.compile("\\d+[.,]?\\d*");
+        Matcher cleanValueMatch =
+                cleanValue.matcher(valueMatcherFromFile.group());
         cleanValueMatch.find();
-        String valueFromMatch = cleanValueMatch.group();
-        return Float.valueOf(valueFromMatch);
+        return Float.valueOf(cleanValueMatch.group().replaceAll(",", "."));
     }
 
     public static void main(String[] args) {
