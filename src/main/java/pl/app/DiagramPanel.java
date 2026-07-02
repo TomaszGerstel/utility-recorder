@@ -1,3 +1,5 @@
+package pl.app;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.Date;

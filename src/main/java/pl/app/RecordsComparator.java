@@ -1,3 +1,5 @@
+package pl.app;
+
 import java.util.Comparator;
 
 public class RecordsComparator implements Comparator<RecordModel> {

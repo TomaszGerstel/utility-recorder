@@ -1,3 +1,5 @@
+package pl.app;
+
 import java.util.Date;
 
 public class RecordModel {
